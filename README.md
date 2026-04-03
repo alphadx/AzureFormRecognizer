@@ -45,8 +45,18 @@ ALLOWED_CLIENTS=cliente1:clave1,cliente2:clave2
 ### 3. Iniciar con Docker
 
 ```bash
-docker-compose -f docker/docker-compose.yml up --build
+make docker-up-build
 ```
+
+Modo demo (levanta una web de pruebas en otro contenedor):
+
+```bash
+make docker-up-build DEMO=1
+# o equivalente
+make demo-up-build
+```
+
+La web demo queda disponible en `http://localhost:8081`.
 
 ### 4. Probar la API
 
@@ -115,17 +125,28 @@ curl -X POST http://localhost:8000/api/v1/documents/process \
 
 ```bash
 # Construir y ejecutar
-docker-compose -f docker/docker-compose.yml up --build
+make docker-up-build
 
 # Ejecutar en segundo plano
-docker-compose -f docker/docker-compose.yml up -d
+make docker-up
+
+# Incluir demo web opcional
+make docker-up DEMO=1
 
 # Ver logs
-docker-compose -f docker/docker-compose.yml logs -f
+make docker-logs
 
 # Detener
-docker-compose -f docker/docker-compose.yml down
+make docker-down
 ```
+
+### Demo Web de Pruebas
+
+Cuando usas `DEMO=1`, se activa un contenedor `demo-web` (Nginx liviano) que sirve una página para probar el endpoint de procesamiento.
+
+- URL demo: `http://localhost:8081`
+- API esperada: `http://localhost:8000`
+- Flujo: solicita token con `client_name=DEMO` y luego envía `archivo`, `tipo_documento` y `cliente_id=DEMO` al endpoint `/api/v1/documents/process`
 
 ### Producción
 

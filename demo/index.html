@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo - Document Processor API</title>
+  <style>
+    :root {
+      --bg-1: #f6f7f2;
+      --bg-2: #e5efe6;
+      --ink: #18230f;
+      --soft: #3a4a2e;
+      --card: #ffffff;
+      --line: #cad8c1;
+      --accent: #40663a;
+      --accent-2: #6f8f52;
+      --danger: #9c2c2c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 400px at -10% -5%, #ffffff 0%, rgba(255,255,255,0) 60%),
+        radial-gradient(900px 320px at 120% 0%, #d8e7d7 0%, rgba(216,231,215,0) 62%),
+        linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+
+    .panel {
+      width: min(920px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--card);
+      box-shadow: 0 18px 55px rgba(22, 36, 15, 0.12);
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 20px;
+      background: linear-gradient(115deg, var(--accent), var(--accent-2));
+      color: #f5f8f2;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      letter-spacing: 0.2px;
+    }
+
+    .header p {
+      margin: 8px 0 0;
+      opacity: 0.92;
+      font-size: 0.95rem;
+    }
+
+    form {
+      display: grid;
+      gap: 14px;
+      padding: 18px 20px 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.9rem;
+      color: var(--soft);
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px 11px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      font-size: 0.95rem;
+      color: var(--ink);
+      background: #fcfdfb;
+    }
+
+    .row {
+      display: grid;
+      gap: 6px;
+    }
+
+    .muted {
+      color: var(--soft);
+      font-size: 0.84rem;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      padding: 10px 20px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease;
+      box-shadow: 0 8px 20px rgba(64, 102, 58, 0.3);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--soft);
+    }
+
+    .status.error {
+      color: var(--danger);
+    }
+
+    .output-wrap {
+      border-top: 1px solid var(--line);
+      padding: 16px 20px 20px;
+    }
+
+    .output-wrap h2 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+
+    pre {
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #f8fbf7;
+      padding: 14px;
+      max-height: 360px;
+      overflow: auto;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    @media (max-width: 760px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header h1 {
+        font-size: 1.1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="panel">
+    <div class="header">
+      <h1>Demo liviano - Document Processor</h1>
+      <p>Sube un archivo, selecciona el tipo de documento y prueba la API mostrando la respuesta real en JSON.</p>
+    </div>
+
+    <form id="demo-form">
+      <div class="grid">
+        <div class="row">
+          <label for="apiBaseUrl">API Base URL</label>
+          <input id="apiBaseUrl" name="apiBaseUrl" type="url" required />
+          <div class="muted">Para Docker local normalmente: http://localhost:8000</div>
+        </div>
+
+        <div class="row">
+          <label for="sharedKey">Shared Key de DEMO</label>
+          <input id="sharedKey" name="sharedKey" type="text" placeholder="Clave del cliente DEMO" required />
+          <div class="muted">Se usa para pedir token con client_name=DEMO</div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="row">
+          <label for="tipoDocumento">tipo_documento</label>
+          <select id="tipoDocumento" name="tipoDocumento" required>
+            <option value="curriculum_vitae">curriculum_vitae</option>
+            <option value="titulo_universitario">titulo_universitario</option>
+            <option value="concentracion_notas">concentracion_notas</option>
+            <option value="cedula_identidad">cedula_identidad</option>
+            <option value="cotizacion_afp">cotizacion_afp</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label for="archivo">archivo</label>
+          <input id="archivo" name="archivo" type="file" required />
+          <div class="muted">PDF, PNG, JPG, JPEG (segun configuración de la API)</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="submitBtn" type="submit">Enviar prueba</button>
+        <span id="status" class="status">Listo</span>
+      </div>
+    </form>
+
+    <section class="output-wrap">
+      <h2>Respuesta API</h2>
+      <pre id="output">Esperando prueba...</pre>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById("demo-form");
+    const output = document.getElementById("output");
+    const statusEl = document.getElementById("status");
+    const submitBtn = document.getElementById("submitBtn");
+    const apiBaseUrlInput = document.getElementById("apiBaseUrl");
+
+    apiBaseUrlInput.value = `${window.location.protocol}//${window.location.hostname}:8000`;
+
+    function setStatus(text, isError = false) {
+      statusEl.textContent = text;
+      statusEl.classList.toggle("error", Boolean(isError));
+    }
+
+    function writeJson(data) {
+      output.textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function getToken(apiBaseUrl, sharedKey) {
+      const tokenResponse = await fetch(`${apiBaseUrl}/api/v1/auth/token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          client_name: "DEMO",
+          action_name: "process_documents",
+          shared_key: sharedKey
+        })
+      });
+
+      const tokenBody = await tokenResponse.json().catch(() => ({}));
+
+      if (!tokenResponse.ok || !tokenBody.access_token) {
+        const err = {
+          step: "token",
+          status: tokenResponse.status,
+          body: tokenBody
+        };
+        throw err;
+      }
+
+      return tokenBody.access_token;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      submitBtn.disabled = true;
+
+      try {
+        setStatus("Solicitando token...");
+
+        const formData = new FormData(form);
+        const apiBaseUrl = String(formData.get("apiBaseUrl") || "").replace(/\/$/, "");
+        const sharedKey = String(formData.get("sharedKey") || "");
+        const tipoDocumento = String(formData.get("tipoDocumento") || "");
+        const archivo = formData.get("archivo");
+
+        if (!archivo || !(archivo instanceof File)) {
+          throw { step: "validation", message: "Debes seleccionar un archivo" };
+        }
+
+        const token = await getToken(apiBaseUrl, sharedKey);
+
+        setStatus("Enviando documento a la API...");
+
+        const payload = new FormData();
+        payload.append("archivo", archivo);
+        payload.append("tipo_documento", tipoDocumento);
+        payload.append("cliente_id", "DEMO");
+
+        const processResponse = await fetch(`${apiBaseUrl}/api/v1/documents/process`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          body: payload
+        });
+
+        const processBody = await processResponse.json().catch(() => ({}));
+
+        writeJson({
+          token_client: "DEMO",
+          token_action: "process_documents",
+          request: {
+            tipo_documento: tipoDocumento,
+            cliente_id: "DEMO",
+            archivo: archivo.name
+          },
+          response_status: processResponse.status,
+          response: processBody
+        });
+
+        setStatus(processResponse.ok ? "Completado" : "Completado con error API", !processResponse.ok);
+      } catch (error) {
+        writeJson({
+          error: true,
+          detail: error
+        });
+        setStatus("Error en la prueba", true);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

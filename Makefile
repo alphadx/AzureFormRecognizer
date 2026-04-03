@@ -1,11 +1,18 @@
 # Makefile para Document Processor API
 
-.PHONY: help install test lint format clean docker-build docker-up docker-down run
+.PHONY: help install test lint format clean docker-build docker-up docker-down run demo-up demo-up-build
 
 # Variables
 PYTHON := python3
 PIP := pip3
-DOCKER_COMPOSE := docker-compose -f docker/docker-compose.yml
+DEMO ?= 0
+COMPOSE_PROFILE_ARGS :=
+
+ifeq ($(DEMO),1)
+COMPOSE_PROFILE_ARGS := --profile demo
+endif
+
+DOCKER_COMPOSE := docker compose -f docker/docker-compose.yml $(COMPOSE_PROFILE_ARGS)
 
 # Colores
 BLUE := \033[36m
@@ -71,12 +78,20 @@ docker-build: ## Construye la imagen Docker
 	$(DOCKER_COMPOSE) build
 
 docker-up: ## Inicia los contenedores
-	@echo "$(BLUE)Iniciando contenedores...$(NC)"
+	@echo "$(BLUE)Iniciando contenedores (DEMO=$(DEMO))...$(NC)"
 	$(DOCKER_COMPOSE) up -d
 
 docker-up-build: ## Construye e inicia los contenedores
-	@echo "$(BLUE)Construyendo e iniciando contenedores...$(NC)"
+	@echo "$(BLUE)Construyendo e iniciando contenedores (DEMO=$(DEMO))...$(NC)"
 	$(DOCKER_COMPOSE) up --build -d
+
+demo-up: ## Inicia contenedores con web demo (equivale a DEMO=1)
+	@echo "$(BLUE)Iniciando contenedores con DEMO...$(NC)"
+	$(MAKE) docker-up DEMO=1
+
+demo-up-build: ## Construye e inicia contenedores con web demo (equivale a DEMO=1)
+	@echo "$(BLUE)Construyendo e iniciando contenedores con DEMO...$(NC)"
+	$(MAKE) docker-up-build DEMO=1
 
 docker-down: ## Detiene los contenedores
 	@echo "$(BLUE)Deteniendo contenedores...$(NC)"

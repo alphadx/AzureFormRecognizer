@@ -31,3 +31,4 @@ httpx==0.26.0
 
 # Utilidades
 aiofiles==23.2.1
+python-magic==0.4.27

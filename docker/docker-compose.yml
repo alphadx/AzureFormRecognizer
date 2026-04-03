@@ -18,6 +18,21 @@ services:
       - document-processor-network
     restart: unless-stopped
 
+  demo-web:
+    image: nginx:1.27-alpine
+    container_name: document-processor-demo-web
+    depends_on:
+      - api
+    ports:
+      - "8081:80"
+    volumes:
+      - ../demo/index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - document-processor-network
+    restart: unless-stopped
+    profiles:
+      - demo
+
   redis:
     image: redis:7-alpine
     container_name: document-processor-redis
