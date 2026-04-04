@@ -277,6 +277,38 @@ class DocumentTypeValidator:
         return ValidationResult(is_valid=True)
 
 
+class AzureModelValidator:
+    """Validador de modelos Azure prebuilt directos"""
+
+    ALLOWED_PREBUILT_MODELS = {
+        "prebuilt-document",
+        "prebuilt-read",
+        "prebuilt-layout",
+        "prebuilt-idDocument",
+        "prebuilt-businessCard",
+        "prebuilt-healthInsuranceCard",
+        "prebuilt-marriageCertificate",
+        "prebuilt-invoice",
+        "prebuilt-receipt",
+        "prebuilt-taxDocument",
+        "prebuilt-bankStatement",
+        "prebuilt-creditCard",
+        "prebuilt-payStub",
+        "prebuilt-mortgageDocuments",
+        "prebuilt-contract"
+    }
+
+    @classmethod
+    def is_valid_azure_model(cls, model_id: str) -> bool:
+        """Verifica si el ID corresponde a un modelo Azure prebuilt admitido"""
+        return model_id in cls.ALLOWED_PREBUILT_MODELS
+
+    @classmethod
+    def get_allowed_models(cls) -> list:
+        """Retorna la lista de modelos Azure prebuilt admitidos"""
+        return sorted(cls.ALLOWED_PREBUILT_MODELS)
+
+
 def validate_token_request(
     client_name: str,
     action_name: str,

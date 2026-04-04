@@ -26,7 +26,7 @@ services:
     ports:
       - "8081:80"
     volumes:
-      - ../demo/index.html:/usr/share/nginx/html/index.html:ro
+      - ../demo:/usr/share/nginx/html:ro
     networks:
       - document-processor-network
     restart: unless-stopped

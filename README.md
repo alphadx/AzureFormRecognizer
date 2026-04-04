@@ -12,6 +12,7 @@ API RESTful para procesamiento de documentos con Azure Form Recognizer. Soporta 
 - Listar y detallar tipos de documento
 - Procesar archivos PDF/PNG/JPG/JPEG
 - Consultar modelos Azure configurados
+- Enviar documentos directamente a modelos Azure prebuilt como `prebuilt-document`, `prebuilt-invoice` o `prebuilt-contract`
 - Mantener rate limiting y seguridad con headers
 - Probar con una demo web simple
 
@@ -39,11 +40,14 @@ make docker-up DEMO=1
 
 La demo queda disponible en:
 - `http://localhost:8081`
+- `http://localhost:8081/azure-models.html` (demo para modelos Azure prebuilt)
 
 La página demo usa:
 - `client_name=DEMO`
 - `action_name=process_documents`
 - `cliente_id=DEMO`
+
+Puedes probar modelos Azure prebuilt directos con la nueva página `azure-models.html` y el endpoint POST `/api/v1/documents/process/azure-model`.
 
 > Para que la demo funcione, agrega un cliente demo en `ALLOWED_CLIENTS`, por ejemplo:
 > `ALLOWED_CLIENTS=DEMO:demo_key_123,cliente1:clave1`
@@ -184,6 +188,22 @@ cliente_id=cliente_123
 Campos:
 - `archivo`: archivo PDF/PNG/JPG/JPEG
 - `tipo_documento`: tipo de documento soportado
+- `cliente_id`: opcional para tracking
+
+### Procesar con modelo Azure prebuilt directo
+```http
+POST /api/v1/documents/process/azure-model
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+archivo=@/ruta/al/documento.pdf
+azure_model_id=prebuilt-invoice
+cliente_id=cliente_123
+```
+
+Campos:
+- `archivo`: archivo PDF/PNG/JPG/JPEG
+- `azure_model_id`: modelo Azure prebuilt a usar
 - `cliente_id`: opcional para tracking
 
 ### Ejemplos de respuesta

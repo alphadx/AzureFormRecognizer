@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Demo - Document Processor API</title>
+  <title>Demo - Azure Form Recognizer Models</title>
   <style>
     :root {
       --bg-1: #f6f7f2;
@@ -165,6 +165,11 @@
       word-break: break-word;
     }
 
+    a {
+      color: #f5f8f2;
+      text-decoration: underline;
+    }
+
     @media (max-width: 760px) {
       .grid {
         grid-template-columns: 1fr;
@@ -179,12 +184,12 @@
 <body>
   <main class="panel">
     <div class="header">
-      <h1>Demo liviano - Document Processor</h1>
-      <p>Sube un archivo, selecciona el tipo de documento y prueba la API mostrando la respuesta real en JSON.</p>
-      <p class="muted">También puedes probar modelos Azure prebuilt directamente en <a href="/azure-models.html">la página de Azure prebuilt</a>.</p>
+      <h1>Demo Azure Form Recognizer</h1>
+      <p>Selecciona un modelo Azure prebuilt y prueba la API con un archivo real.</p>
+      <p class="muted">Regresa a la demo principal para seleccionar documentos académicos: <a href="/">Demo principal</a></p>
     </div>
 
-    <form id="demo-form">
+    <form id="azure-model-form">
       <div class="grid">
         <div class="row">
           <label for="apiBaseUrl">API Base URL</label>
@@ -201,20 +206,38 @@
 
       <div class="grid">
         <div class="row">
-          <label for="tipoDocumento">tipo_documento</label>
-          <select id="tipoDocumento" name="tipoDocumento" required>
-            <option value="curriculum_vitae">curriculum_vitae</option>
-            <option value="titulo_universitario">titulo_universitario</option>
-            <option value="concentracion_notas">concentracion_notas</option>
-            <option value="cedula_identidad">cedula_identidad</option>
-            <option value="cotizacion_afp">cotizacion_afp</option>
+          <label for="azureModelId">azure_model_id</label>
+          <select id="azureModelId" name="azureModelId" required>
+            <optgroup label="Modelos Generales">
+              <option value="prebuilt-document">prebuilt-document</option>
+              <option value="prebuilt-read">prebuilt-read</option>
+              <option value="prebuilt-layout">prebuilt-layout</option>
+            </optgroup>
+            <optgroup label="Modelos de Identificación y Personales">
+              <option value="prebuilt-idDocument">prebuilt-idDocument</option>
+              <option value="prebuilt-businessCard">prebuilt-businessCard</option>
+              <option value="prebuilt-healthInsuranceCard">prebuilt-healthInsuranceCard</option>
+              <option value="prebuilt-marriageCertificate">prebuilt-marriageCertificate</option>
+            </optgroup>
+            <optgroup label="Modelos Financieros">
+              <option value="prebuilt-invoice">prebuilt-invoice</option>
+              <option value="prebuilt-receipt">prebuilt-receipt</option>
+              <option value="prebuilt-taxDocument">prebuilt-taxDocument</option>
+              <option value="prebuilt-bankStatement">prebuilt-bankStatement</option>
+              <option value="prebuilt-creditCard">prebuilt-creditCard</option>
+              <option value="prebuilt-payStub">prebuilt-payStub</option>
+              <option value="prebuilt-mortgageDocuments">prebuilt-mortgageDocuments</option>
+            </optgroup>
+            <optgroup label="Modelos Legales y Contractuales">
+              <option value="prebuilt-contract">prebuilt-contract</option>
+            </optgroup>
           </select>
         </div>
 
         <div class="row">
           <label for="archivo">archivo</label>
           <input id="archivo" name="archivo" type="file" required />
-          <div class="muted">PDF, PNG, JPG, JPEG (segun configuración de la API)</div>
+          <div class="muted">PDF, PNG, JPG, JPEG (según configuración de la API)</div>
         </div>
       </div>
 
@@ -231,7 +254,7 @@
   </main>
 
   <script>
-    const form = document.getElementById("demo-form");
+    const form = document.getElementById("azure-model-form");
     const output = document.getElementById("output");
     const statusEl = document.getElementById("status");
     const submitBtn = document.getElementById("submitBtn");
@@ -285,7 +308,7 @@
         const formData = new FormData(form);
         const apiBaseUrl = String(formData.get("apiBaseUrl") || "").replace(/\/$/, "");
         const sharedKey = String(formData.get("sharedKey") || "");
-        const tipoDocumento = String(formData.get("tipoDocumento") || "");
+        const azureModelId = String(formData.get("azureModelId") || "");
         const archivo = formData.get("archivo");
 
         if (!archivo || !(archivo instanceof File)) {
@@ -298,10 +321,10 @@
 
         const payload = new FormData();
         payload.append("archivo", archivo);
-        payload.append("tipo_documento", tipoDocumento);
+        payload.append("azure_model_id", azureModelId);
         payload.append("cliente_id", "DEMO");
 
-        const processResponse = await fetch(`${apiBaseUrl}/api/v1/documents/process`, {
+        const processResponse = await fetch(`${apiBaseUrl}/api/v1/documents/process/azure-model`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`
@@ -315,7 +338,7 @@
           token_client: "DEMO",
           token_action: "process_documents",
           request: {
-            tipo_documento: tipoDocumento,
+            azure_model_id: azureModelId,
             cliente_id: "DEMO",
             archivo: archivo.name
           },

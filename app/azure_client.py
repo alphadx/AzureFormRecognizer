@@ -52,6 +52,32 @@ class AzureFormRecognizerClient(LoggerMixin):
         DocumentType.CONCENTRACION_NOTAS: settings.custom_model_notas,
         DocumentType.COTIZACION_AFP: settings.custom_model_afp,
     }
+
+    AZURE_PREBUILT_CATALOG = {
+        "Modelos Generales": [
+            "prebuilt-document",
+            "prebuilt-read",
+            "prebuilt-layout"
+        ],
+        "Modelos de Identificación y Personales": [
+            "prebuilt-idDocument",
+            "prebuilt-businessCard",
+            "prebuilt-healthInsuranceCard",
+            "prebuilt-marriageCertificate"
+        ],
+        "Modelos Financieros": [
+            "prebuilt-invoice",
+            "prebuilt-receipt",
+            "prebuilt-taxDocument",
+            "prebuilt-bankStatement",
+            "prebuilt-creditCard",
+            "prebuilt-payStub",
+            "prebuilt-mortgageDocuments"
+        ],
+        "Modelos Legales y Contractuales": [
+            "prebuilt-contract"
+        ]
+    }
     
     def __init__(self, config: Optional[AzureConfig] = None):
         """
@@ -138,7 +164,7 @@ class AzureFormRecognizerClient(LoggerMixin):
     
     def _process_with_retry(
         self,
-        document_type: DocumentType,
+        document_type: Optional[DocumentType],
         file_content: bytes,
         model_id: str
     ) -> AzureProcessingResult:
@@ -146,7 +172,7 @@ class AzureFormRecognizerClient(LoggerMixin):
         Procesa un documento con lógica de retry
         
         Args:
-            document_type: Tipo de documento
+            document_type: Tipo de documento (opcional cuando se usa un model_id directo)
             file_content: Contenido binario del archivo
             model_id: ID del modelo Azure
             
@@ -161,7 +187,7 @@ class AzureFormRecognizerClient(LoggerMixin):
             try:
                 self.log_debug(
                     f"Azure request attempt {attempt + 1}/{self.config.max_retries + 1}",
-                    document_type=document_type.value,
+                    document_type=(document_type.value if document_type else "azure_direct"),
                     model_id=model_id
                 )
                 
@@ -180,7 +206,7 @@ class AzureFormRecognizerClient(LoggerMixin):
                 
                 self.log_info(
                     f"Azure request successful on attempt {attempt + 1}",
-                    document_type=document_type.value,
+                    document_type=(document_type.value if document_type else "azure_direct"),
                     model_id=model_id,
                     pages=len(result.pages) if result.pages else 0,
                     confidence=confidence
@@ -201,7 +227,7 @@ class AzureFormRecognizerClient(LoggerMixin):
                 last_error = f"Timeout after {self.config.timeout_seconds}s: {str(e)}"
                 self.log_warning(
                     f"Azure request timeout (attempt {attempt + 1})",
-                    document_type=document_type.value,
+                    document_type=(document_type.value if document_type else "azure_direct"),
                     timeout=self.config.timeout_seconds
                 )
                 
@@ -217,7 +243,7 @@ class AzureFormRecognizerClient(LoggerMixin):
                         "Azure model not found, falling back to prebuilt-document",
                         extra={
                             "extra_data": {
-                                "document_type": document_type.value,
+                                "document_type": (document_type.value if document_type else "azure_direct"),
                                 "model_id": model_id,
                                 "fallback_model_id": "prebuilt-document",
                                 "status_code": e.status_code,
@@ -232,7 +258,7 @@ class AzureFormRecognizerClient(LoggerMixin):
                     f"Azure HTTP error (attempt {attempt + 1})",
                     status_code=e.status_code,
                     error=e.message,
-                    document_type=document_type.value
+                    document_type=(document_type.value if document_type else "azure_direct")
                 )
                 # No reintentar errores 4xx
                 if e.status_code and 400 <= e.status_code < 500:
@@ -243,7 +269,7 @@ class AzureFormRecognizerClient(LoggerMixin):
                 self.log_error(
                     f"Azure service request error (attempt {attempt + 1})",
                     error=str(e),
-                    document_type=document_type.value
+                    document_type=(document_type.value if document_type else "azure_direct")
                 )
                 
             except ClientAuthenticationError as e:
@@ -251,7 +277,7 @@ class AzureFormRecognizerClient(LoggerMixin):
                 self.log_error(
                     "Azure authentication error",
                     error=str(e),
-                    document_type=document_type.value
+                    document_type=(document_type.value if document_type else "azure_direct")
                 )
                 # No reintentar errores de autenticación
                 break
@@ -266,7 +292,7 @@ class AzureFormRecognizerClient(LoggerMixin):
                         "Azure model not found (ResourceNotFoundError), falling back to prebuilt-document",
                         extra={
                             "extra_data": {
-                                "document_type": document_type.value,
+                                "document_type": (document_type.value if document_type else "azure_direct"),
                                 "model_id": model_id,
                                 "fallback_model_id": "prebuilt-document",
                                 "error": str(e)
@@ -289,7 +315,7 @@ class AzureFormRecognizerClient(LoggerMixin):
                 self.log_error(
                     f"Azure unexpected error (attempt {attempt + 1})",
                     error=str(e),
-                    document_type=document_type.value,
+                    document_type=(document_type.value if document_type else "azure_direct"),
                     exc_info=True
                 )
             
@@ -302,7 +328,7 @@ class AzureFormRecognizerClient(LoggerMixin):
         # Todos los intentos fallaron
         self.log_error(
             "All Azure request attempts failed",
-            document_type=document_type.value,
+            document_type=(document_type.value if document_type else "azure_direct"),
             model_id=model_id,
             last_error=last_error,
             total_attempts=self.config.max_retries + 1
@@ -318,7 +344,7 @@ class AzureFormRecognizerClient(LoggerMixin):
     def _extract_data_from_result(
         self,
         result: Any,
-        document_type: DocumentType
+        document_type: Optional[DocumentType]
     ) -> Dict[str, Any]:
         """
         Extrae datos estructurados del resultado de Azure
@@ -333,17 +359,56 @@ class AzureFormRecognizerClient(LoggerMixin):
         extracted = {}
         
         if not result.documents:
-            return extracted
+            return self._extract_content_from_pages(result)
         
         # Tomar el primer documento (normalmente solo hay uno)
         document = result.documents[0]
         
         # Extraer campos según el tipo de documento
-        if document.fields:
+        if getattr(document, 'fields', None):
             for field_name, field_value in document.fields.items():
                 extracted[field_name] = self._parse_field_value(field_value)
+
+        # Si no se extrajeron campos estructurados, devolver el texto/páginas crudas
+        if not extracted:
+            return self._extract_content_from_pages(result)
         
         return extracted
+    
+    def _extract_content_from_pages(self, result: Any) -> Dict[str, Any]:
+        """
+        Extrae contenido de texto genérico cuando no hay campos estructurados.
+        """
+        content_data: Dict[str, Any] = {}
+
+        if hasattr(result, 'content') and result.content:
+            content_data['content'] = result.content
+
+        pages = []
+        if getattr(result, 'pages', None):
+            for page in result.pages:
+                page_item: Dict[str, Any] = {}
+                if hasattr(page, 'page_number'):
+                    page_item['page_number'] = page.page_number
+                if hasattr(page, 'content') and page.content:
+                    page_item['content'] = page.content
+
+                if getattr(page, 'lines', None):
+                    page_item['lines'] = [
+                        {
+                            'content': getattr(line, 'content', None),
+                            'confidence': getattr(line, 'confidence', None)
+                        }
+                        for line in page.lines
+                    ]
+
+                if page_item:
+                    pages.append(page_item)
+
+        if pages:
+            content_data['pages'] = pages
+
+        return content_data
     
     def _parse_field_value(self, field_value: Any) -> Any:
         """
@@ -393,11 +458,19 @@ class AzureFormRecognizerClient(LoggerMixin):
                 if hasattr(doc, 'confidence') and doc.confidence:
                     confidences.append(doc.confidence)
                 
-                if doc.fields:
+                if getattr(doc, 'fields', None):
                     for field in doc.fields.values():
                         if hasattr(field, 'confidence') and field.confidence:
                             confidences.append(field.confidence)
         
+        # Fallback: usar confidencia de líneas si no hay datos estructurados.
+        if not confidences and getattr(result, 'pages', None):
+            for page in result.pages:
+                if getattr(page, 'lines', None):
+                    for line in page.lines:
+                        if hasattr(line, 'confidence') and line.confidence:
+                            confidences.append(line.confidence)
+
         if not confidences:
             return 0.0
         
@@ -485,7 +558,64 @@ class AzureFormRecognizerClient(LoggerMixin):
         )
         
         return result
-    
+
+    def analyze_document_with_model_id(
+        self,
+        model_id: str,
+        file_content: bytes
+    ) -> AzureProcessingResult:
+        """
+        Analiza un documento usando un modelo Azure prebuilt directo.
+
+        Args:
+            model_id: ID del modelo Azure (por ejemplo prebuilt-document)
+            file_content: Contenido binario del archivo
+
+        Returns:
+            AzureProcessingResult con el resultado del análisis
+        """
+        start_time = time.time()
+
+        if not self.is_configured:
+            error_msg = "Azure Form Recognizer not configured"
+            self.log_error(error_msg)
+
+            log_azure_request(
+                document_type=model_id,
+                model_used="none",
+                success=False,
+                duration_ms=(time.time() - start_time) * 1000,
+                error=error_msg
+            )
+
+            return AzureProcessingResult(
+                success=False,
+                error_message=error_msg
+            )
+
+        self.log_info(
+            "Starting direct Azure model analysis",
+            model_id=model_id,
+            file_size_bytes=len(file_content)
+        )
+
+        result = self._process_with_retry(None, file_content, model_id)
+
+        duration_ms = (time.time() - start_time) * 1000
+        result.processing_time_ms = int(duration_ms)
+        
+        used_model_id = result.model_used or model_id
+
+        log_azure_request(
+            document_type=model_id,
+            model_used=used_model_id,
+            success=result.success,
+            duration_ms=duration_ms,
+            error=result.error_message if not result.success else None
+        )
+
+        return result
+
     def get_model_info(self, model_id: str) -> Dict[str, Any]:
         """
         Obtiene información de un modelo
@@ -539,6 +669,10 @@ class AzureFormRecognizerClient(LoggerMixin):
             "custom_models": [
                 {"id": v, "document_type": k.value}
                 for k, v in self.CUSTOM_MODELS.items()
+            ],
+            "prebuilt_catalog": [
+                {"category": category, "models": [{"id": model_id} for model_id in model_ids]}
+                for category, model_ids in self.AZURE_PREBUILT_CATALOG.items()
             ],
             "azure_configured": self.is_configured
         }

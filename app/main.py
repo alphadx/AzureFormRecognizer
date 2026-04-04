@@ -18,7 +18,7 @@ from app.utils.logger import (
     log_request,
     log_auth_event
 )
-from app.utils.validators import FileValidator, DocumentTypeValidator, validate_token_request
+from app.utils.validators import FileValidator, DocumentTypeValidator, AzureModelValidator, validate_token_request
 from app.models.document_types import (
     DocumentType,
     get_all_document_types,
@@ -83,6 +83,9 @@ app = FastAPI(
     - **concentracion_notas**: Certificado de notas (modelo custom)
     - **cedula_identidad**: Cédula de identidad (modelo prebuilt-idDocument)
     - **cotizacion_afp**: Cotización AFP (modelo custom)
+    
+    ## Modelos Azure Directos
+    Esta API también expone un endpoint adicional para enviar archivos directamente a modelos Azure prebuilt como `prebuilt-document`, `prebuilt-invoice`, `prebuilt-contract`, entre otros.
     
     ## Rate Limiting
     - 100 requests por hora por IP
@@ -240,7 +243,8 @@ async def root():
             "auth": "/api/v1/auth/token",
             "health": "/health",
             "document_types": "/api/v1/document-types",
-            "process": "/api/v1/documents/process"
+            "process": "/api/v1/documents/process",
+            "process_azure_model": "/api/v1/documents/process/azure-model"
         },
         "correlation_id": get_correlation_id()
     }
@@ -736,6 +740,106 @@ async def get_azure_models(
         "max_retries": settings.azure_max_retries,
         "correlation_id": get_correlation_id()
     }
+
+
+@app.post(
+    "/api/v1/documents/process/azure-model",
+    response_model=DocumentProcessResponse,
+    tags=["Azure"],
+    responses={
+        400: {"model": ErrorResponse, "description": "Modelo Azure inválido o datos inválidos"},
+        401: {"model": ErrorResponse, "description": "No autenticado"},
+        413: {"model": ErrorResponse, "description": "Archivo demasiado grande"},
+        422: {"model": ErrorResponse, "description": "Error de validación"},
+        500: {"model": ErrorResponse, "description": "Error de procesamiento"}
+    }
+)
+async def process_document_with_azure_model(
+    archivo: UploadFile = File(..., description="Archivo a procesar (PDF, PNG, JPG, JPEG). Máximo 10 MB"),
+    azure_model_id: str = Form(..., description="ID del modelo Azure prebuilt, por ejemplo prebuilt-document"),
+    cliente_id: Optional[str] = Form(None, description="ID del cliente para tracking (opcional)"),
+    auth_context: AuthContext = Depends(get_current_auth_context)
+):
+    """
+    Procesa un documento usando un modelo Azure prebuilt directo.
+
+    - **archivo**: Archivo a procesar (PDF, PNG, JPG, JPEG).
+    - **azure_model_id**: Modelo prebuilt Azure a usar.
+    - **cliente_id**: ID del cliente (opcional).
+
+    Requiere autenticación Bearer.
+    """
+    logger.info(
+        "Azure model processing request",
+        extra={
+            "extra_data": {
+                "azure_model_id": azure_model_id,
+                "filename": archivo.filename,
+                "client_name": auth_context.client_name,
+                "correlation_id": get_correlation_id()
+            }
+        }
+    )
+
+    if not AzureModelValidator.is_valid_azure_model(azure_model_id):
+        valid_models = ', '.join(AzureModelValidator.get_allowed_models())
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "success": False,
+                "error_code": ErrorCode.INVALID_DOCUMENT_TYPE,
+                "message": f"Modelo Azure inválido. Válidos: {valid_models}",
+                "correlation_id": get_correlation_id()
+            }
+        )
+
+    if not archivo.filename:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "success": False,
+                "error_code": ErrorCode.VALIDATION_ERROR,
+                "message": "Nombre de archivo requerido",
+                "correlation_id": get_correlation_id()
+            }
+        )
+
+    try:
+        file_content = await archivo.read()
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "success": False,
+                "error_code": ErrorCode.VALIDATION_ERROR,
+                "message": f"Error leyendo archivo: {str(e)}",
+                "correlation_id": get_correlation_id()
+            }
+        )
+    finally:
+        await archivo.close()
+
+    if len(file_content) > settings.max_file_size_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail={
+                "success": False,
+                "error_code": ErrorCode.VALIDATION_ERROR,
+                "message": f"Archivo demasiado grande. Máximo: {settings.max_file_size_mb} MB",
+                "correlation_id": get_correlation_id()
+            }
+        )
+
+    processor = get_document_processor()
+    result = await processor.process_azure_model(
+        azure_model_id=azure_model_id,
+        file_content=file_content,
+        filename=archivo.filename,
+        client_name=auth_context.client_name,
+        metadata={"cliente_id": cliente_id} if cliente_id else None
+    )
+
+    return result
 
 
 @app.get(

@@ -16,7 +16,7 @@ from app.models.schemas import (
 from app.azure_client import get_azure_client
 from app.services.model_mapper import map_azure_response, ModelMapperFactory
 from app.utils.logger import LoggerMixin, log_document_processed, get_correlation_id
-from app.utils.validators import FileValidator, DocumentTypeValidator
+from app.utils.validators import FileValidator, DocumentTypeValidator, AzureModelValidator
 
 
 class DocumentProcessingError(Exception):
@@ -184,6 +184,125 @@ class DocumentProcessor(LoggerMixin):
                 success=False,
                 status=ProcessingStatus.ERROR,
                 document_type=document_type.value,
+                processed_at=datetime.utcnow().isoformat() + "Z",
+                data={},
+                confidence_score=0.0,
+                processing_time_ms=processing_time_ms,
+                correlation_id=get_correlation_id(),
+                warnings=[f"INTERNAL_ERROR: {str(e)}"]
+            )
+
+    async def process_azure_model(
+        self,
+        azure_model_id: str,
+        file_content: bytes,
+        filename: str,
+        client_name: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> DocumentProcessResponse:
+        """
+        Procesa un documento usando un modelo Azure prebuilt directo.
+
+        Args:
+            azure_model_id: ID del modelo Azure prebuilt
+            file_content: Contenido binario del archivo
+            filename: Nombre del archivo
+            client_name: Nombre del cliente
+            metadata: Metadata adicional
+
+        Returns:
+            DocumentProcessResponse con el resultado
+        """
+        start_time = time.time()
+
+        self.log_info(
+            "Starting direct Azure model processing",
+            azure_model_id=azure_model_id,
+            filename=filename,
+            file_size_bytes=len(file_content),
+            client_name=client_name
+        )
+
+        try:
+            validation = AzureModelValidator.is_valid_azure_model(azure_model_id)
+            if not validation:
+                raise DocumentProcessingError(
+                    f"Modelo Azure inválido: {azure_model_id}",
+                    "INVALID_DOCUMENT_TYPE"
+                )
+
+            validation_result = self._validate_file(file_content, filename)
+            if not validation_result.is_valid:
+                raise DocumentProcessingError(
+                    validation_result.error_message,
+                    "VALIDATION_ERROR"
+                )
+
+            azure_result = self.azure_client.analyze_document_with_model_id(azure_model_id, file_content)
+
+            if not azure_result.success:
+                raise DocumentProcessingError(
+                    azure_result.error_message or "Azure processing failed",
+                    "AZURE_ERROR"
+                )
+
+            mapped_data = azure_result.extracted_data
+            processing_time_ms = int((time.time() - start_time) * 1000)
+            status = ProcessingStatus.SUCCESS if azure_result.success else ProcessingStatus.ERROR
+
+            log_document_processed(
+                document_type=azure_model_id,
+                confidence_score=azure_result.confidence_score,
+                processing_time_ms=processing_time_ms,
+                file_size_bytes=len(file_content),
+                client_name=client_name
+            )
+
+            return DocumentProcessResponse(
+                success=True,
+                status=status,
+                document_type=azure_model_id,
+                processed_at=datetime.utcnow().isoformat() + "Z",
+                data=mapped_data,
+                confidence_score=azure_result.confidence_score,
+                processing_time_ms=processing_time_ms,
+                correlation_id=get_correlation_id(),
+                warnings=azure_result.warnings if azure_result.warnings else None,
+                extracted_fields_count=len(mapped_data) if mapped_data else 0
+            )
+
+        except DocumentProcessingError as e:
+            self.log_error(
+                f"Document processing failed: {e.message}",
+                document_type=azure_model_id,
+                error_code=e.error_code
+            )
+
+            processing_time_ms = int((time.time() - start_time) * 1000)
+            return DocumentProcessResponse(
+                success=False,
+                status=ProcessingStatus.ERROR,
+                document_type=azure_model_id,
+                processed_at=datetime.utcnow().isoformat() + "Z",
+                data={},
+                confidence_score=0.0,
+                processing_time_ms=processing_time_ms,
+                correlation_id=get_correlation_id(),
+                warnings=[f"{e.error_code}: {e.message}"]
+            )
+
+        except Exception as e:
+            self.log_error(
+                f"Unexpected error during direct Azure model processing: {str(e)}",
+                document_type=azure_model_id,
+                exc_info=True
+            )
+
+            processing_time_ms = int((time.time() - start_time) * 1000)
+            return DocumentProcessResponse(
+                success=False,
+                status=ProcessingStatus.ERROR,
+                document_type=azure_model_id,
                 processed_at=datetime.utcnow().isoformat() + "Z",
                 data={},
                 confidence_score=0.0,

@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 
 from app.main import app
 from app.auth import get_auth_provider
+from app.models.schemas import DocumentProcessResponse
 
 
 # Crear cliente de test
@@ -230,6 +231,50 @@ class TestProtectedEndpoints:
         assert "models" in data
         assert "prebuilt_models" in data["models"]
         assert "custom_models" in data["models"]
+
+    def test_process_azure_model_invalid_model(self, auth_token, sample_pdf_bytes):
+        """Test procesar modelo Azure inválido"""
+        response = client.post(
+            "/api/v1/documents/process/azure-model",
+            headers={"Authorization": f"Bearer {auth_token}"},
+            files={"archivo": ("test.pdf", sample_pdf_bytes, "application/pdf")},
+            data={"azure_model_id": "prebuilt-invalid"}
+        )
+
+        assert response.status_code == 400
+        data = response.json()
+        assert data["error_code"] == "INVALID_DOCUMENT_TYPE"
+
+    def test_process_azure_model_success(self, auth_token, sample_pdf_bytes, monkeypatch):
+        """Test procesar modelo Azure directo exitosamente"""
+        response_payload = DocumentProcessResponse(
+            success=True,
+            status="success",
+            document_type="prebuilt-document",
+            processed_at="2025-01-01T00:00:00Z",
+            data={"text": "ejemplo"},
+            confidence_score=0.98,
+            processing_time_ms=300,
+            correlation_id="test-correlation-id"
+        )
+
+        async def fake_process_azure_model(*args, **kwargs):
+            return response_payload
+
+        monkeypatch.setattr("app.main.get_document_processor", lambda: Mock(process_azure_model=fake_process_azure_model))
+
+        response = client.post(
+            "/api/v1/documents/process/azure-model",
+            headers={"Authorization": f"Bearer {auth_token}"},
+            files={"archivo": ("test.pdf", sample_pdf_bytes, "application/pdf")},
+            data={"azure_model_id": "prebuilt-document"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["document_type"] == "prebuilt-document"
+        assert data["data"]["text"] == "ejemplo"
     
     def test_get_azure_status(self, auth_token):
         """Test obtención de estado de Azure"""
