@@ -442,6 +442,7 @@ class ConfigResponse(BaseModel):
 
 class AzureProcessingResult(BaseModel):
     """Resultado del procesamiento en Azure"""
+    model_config = ConfigDict(protected_namespaces=())
     success: bool
     raw_response: Optional[Dict[str, Any]] = None
     extracted_data: Dict[str, Any] = Field(default_factory=dict)
@@ -450,3 +451,4 @@ class AzureProcessingResult(BaseModel):
     processing_time_ms: int = 0
     error_message: Optional[str] = None
     pages_processed: int = 0
+    warnings: Optional[List[str]] = None

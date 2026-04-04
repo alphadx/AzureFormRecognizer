@@ -26,6 +26,7 @@ class AzureConfig:
     """Configuración de conexión Azure"""
     endpoint: str
     api_key: str
+    api_version: str = "2023-07-31"
     timeout_seconds: int = 30
     max_retries: int = 2
 
@@ -42,7 +43,7 @@ class AzureFormRecognizerClient(LoggerMixin):
     # Modelos prebuilt de Azure
     PREBUILT_MODELS = {
         DocumentType.CURRICULUM_VITAE: "prebuilt-resume",
-        DocumentType.CEDULA_IDENTIDAD: "prebuilt-identityDocument",
+        DocumentType.CEDULA_IDENTIDAD: "prebuilt-idDocument",
     }
     
     # Modelos custom (IDs desde configuración)
@@ -64,6 +65,7 @@ class AzureFormRecognizerClient(LoggerMixin):
         self.config = config or AzureConfig(
             endpoint=settings.azure_form_recognizer_endpoint,
             api_key=settings.azure_form_recognizer_api_key,
+            api_version=settings.azure_form_recognizer_api_version,
             timeout_seconds=settings.azure_timeout_seconds,
             max_retries=settings.azure_max_retries
         )
@@ -85,11 +87,13 @@ class AzureFormRecognizerClient(LoggerMixin):
             credential = AzureKeyCredential(self.config.api_key)
             self._client = DocumentAnalysisClient(
                 endpoint=self.config.endpoint,
-                credential=credential
+                credential=credential,
+                api_version=self.config.api_version
             )
             self.log_info(
                 "Azure Form Recognizer client initialized",
                 endpoint=self.config.endpoint,
+                api_version=self.config.api_version,
                 timeout=self.config.timeout_seconds,
                 max_retries=self.config.max_retries
             )
@@ -150,6 +154,8 @@ class AzureFormRecognizerClient(LoggerMixin):
             AzureProcessingResult con el resultado
         """
         last_error = None
+        fallback_warnings: list[str] = []
+        original_model_id = model_id
         
         for attempt in range(self.config.max_retries + 1):
             try:
@@ -186,7 +192,9 @@ class AzureFormRecognizerClient(LoggerMixin):
                     extracted_data=extracted_data,
                     confidence_score=confidence,
                     model_used=model_id,
-                    pages_processed=len(result.pages) if result.pages else 0
+                    processing_time_ms=0,
+                    pages_processed=len(result.pages) if result.pages else 0,
+                    warnings=fallback_warnings if fallback_warnings else None
                 )
                 
             except TimeoutError as e:
@@ -200,8 +208,11 @@ class AzureFormRecognizerClient(LoggerMixin):
             except HttpResponseError as e:
                 last_error = f"HTTP error {e.status_code}: {e.message}"
 
-                if e.status_code == 404 and model_id == "prebuilt-identityDocument":
+                if e.status_code == 404 and model_id == "prebuilt-idDocument":
                     # Fallback a modelo genérico cuando el recurso no reconoce el modelo de identidad
+                    fallback_warnings.append(
+                        f"Modelo no encontrado: {model_id}. Se usó prebuilt-document como fallback."
+                    )
                     self.log_warning(
                         "Azure model not found, falling back to prebuilt-document",
                         extra={
@@ -247,7 +258,10 @@ class AzureFormRecognizerClient(LoggerMixin):
                 
             except ResourceNotFoundError as e:
                 last_error = f"Resource not found: {str(e)}"
-                if model_id == "prebuilt-identityDocument":
+                if model_id == "prebuilt-idDocument":
+                    fallback_warnings.append(
+                        f"Modelo no encontrado: {model_id}. Se usó prebuilt-document como fallback."
+                    )
                     self.log_warning(
                         "Azure model not found (ResourceNotFoundError), falling back to prebuilt-document",
                         extra={
@@ -297,7 +311,8 @@ class AzureFormRecognizerClient(LoggerMixin):
         return AzureProcessingResult(
             success=False,
             error_message=last_error,
-            model_used=model_id
+            model_used=model_id,
+            warnings=fallback_warnings if fallback_warnings else None
         )
     
     def _extract_data_from_result(
@@ -457,10 +472,13 @@ class AzureFormRecognizerClient(LoggerMixin):
         duration_ms = (time.time() - start_time) * 1000
         result.processing_time_ms = int(duration_ms)
         
+        # Usar el modelo final efectivamente procesado
+        used_model_id = result.model_used or model_id
+        
         # Log del resultado
         log_azure_request(
             document_type=document_type.value,
-            model_used=model_id,
+            model_used=used_model_id,
             success=result.success,
             duration_ms=duration_ms,
             error=result.error_message if not result.success else None

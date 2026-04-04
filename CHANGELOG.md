@@ -13,7 +13,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - Curriculum Vitae (prebuilt-resume)
   - Título Universitario (custom model)
   - Concentración de Notas (custom model)
-  - Cédula de Identidad (prebuilt-identityDocument)
+  - Cédula de Identidad (prebuilt-idDocument)
   - Cotización AFP (custom model)
 - Autenticación JWT con validación de cliente y acción
 - Rate limiting (100 requests/hora por IP)

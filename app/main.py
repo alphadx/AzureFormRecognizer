@@ -81,7 +81,7 @@ app = FastAPI(
     - **curriculum_vitae**: Hoja de vida (modelo prebuilt-resume)
     - **titulo_universitario**: Título universitario (modelo custom)
     - **concentracion_notas**: Certificado de notas (modelo custom)
-    - **cedula_identidad**: Cédula de identidad (modelo prebuilt-identityDocument)
+    - **cedula_identidad**: Cédula de identidad (modelo prebuilt-idDocument)
     - **cotizacion_afp**: Cotización AFP (modelo custom)
     
     ## Rate Limiting

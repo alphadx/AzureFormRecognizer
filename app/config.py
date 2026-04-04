@@ -24,6 +24,11 @@ class Settings(BaseSettings):
         alias="AZURE_FORM_RECOGNIZER_API_KEY",
         description="API Key de Azure Form Recognizer"
     )
+    azure_form_recognizer_api_version: str = Field(
+        default="2023-07-31",
+        alias="AZURE_FORM_RECOGNIZER_API_VERSION",
+        description="Versión de la API de Azure Form Recognizer / Document Intelligence"
+    )
     
     # ============================================
     # CONFIGURACIÓN JWT

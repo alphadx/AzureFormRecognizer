@@ -116,7 +116,7 @@ curl -X POST http://localhost:8000/api/v1/documents/process \
 | `curriculum_vitae` | prebuilt-resume | nombre, email, experiencia, educación, habilidades |
 | `titulo_universitario` | custom | institución, carrera, fecha_emisión, número_título |
 | `concentracion_notas` | custom | asignaturas[{nombre, nota, créditos}], promedio |
-| `cedula_identidad` | prebuilt-identityDocument | nombre, rut, fecha_nacimiento, nacionalidad |
+| `cedula_identidad` | prebuilt-idDocument | nombre, rut, fecha_nacimiento, nacionalidad |
 | `cotizacion_afp` | custom | institución, monto, fecha, tipo_cotización |
 
 ## 🐳 Docker

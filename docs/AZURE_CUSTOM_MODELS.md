@@ -7,7 +7,7 @@ Esta guía explica paso a paso cómo entrenar modelos custom para los tipos de d
 | Tipo de Documento | Modelo Prebuilt | Necesita Custom |
 |-------------------|-----------------|-----------------|
 | Curriculum Vitae | ✅ `prebuilt-resume` | ❌ |
-| Cédula de Identidad | ✅ `prebuilt-identityDocument` | ❌ |
+| Cédula de Identidad | ✅ `prebuilt-idDocument` | ❌ |
 | **Título Universitario** | ❌ | ✅ |
 | **Concentración de Notas** | ❌ | ✅ |
 | **Cotización AFP** | ❌ | ✅ |

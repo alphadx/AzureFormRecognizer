@@ -19,7 +19,7 @@ class DocumentType(str, Enum):
 class AzureModelType(str, Enum):
     """Enum de tipos de modelo Azure"""
     PREBUILT_RESUME = "prebuilt-resume"
-    PREBUILT_IDENTITY = "prebuilt-identityDocument"
+    PREBUILT_IDENTITY = "prebuilt-idDocument"
     PREBUILT_DOCUMENT = "prebuilt-document"
     CUSTOM = "custom"
 
@@ -331,7 +331,7 @@ NOTAS_FIELDS = [
     )
 ]
 
-# Cédula de Identidad - Usa prebuilt-identityDocument
+# Cédula de Identidad - Usa prebuilt-idDocument
 CEDULA_FIELDS = [
     FieldDefinition(
         name="nombre",
@@ -513,7 +513,7 @@ DOCUMENT_TYPE_DEFINITIONS: Dict[DocumentType, DocumentTypeDefinition] = {
         type=DocumentType.CEDULA_IDENTIDAD,
         name="Cédula de Identidad",
         description="Cédula de identidad nacional",
-        azure_model="prebuilt-identityDocument",
+        azure_model="prebuilt-idDocument",
         is_custom_model=False,
         fields=CEDULA_FIELDS,
         supported_extensions=[".pdf", ".png", ".jpg", ".jpeg"],

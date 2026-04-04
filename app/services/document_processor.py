@@ -129,6 +129,13 @@ class DocumentProcessor(LoggerMixin):
                 extracted_fields=extracted_count
             )
             
+            response_warnings = []
+            if azure_result.warnings:
+                response_warnings.extend(azure_result.warnings)
+            generated_warnings = self._generate_warnings(missing_fields, azure_result.confidence_score)
+            if generated_warnings:
+                response_warnings.extend(generated_warnings)
+
             return DocumentProcessResponse(
                 success=True,
                 status=status,
@@ -138,7 +145,7 @@ class DocumentProcessor(LoggerMixin):
                 confidence_score=azure_result.confidence_score,
                 processing_time_ms=processing_time_ms,
                 correlation_id=get_correlation_id(),
-                warnings=self._generate_warnings(missing_fields, azure_result.confidence_score),
+                warnings=response_warnings if response_warnings else None,
                 extracted_fields_count=extracted_count,
                 missing_fields=missing_fields if missing_fields else None
             )

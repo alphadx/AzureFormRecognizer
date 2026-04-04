@@ -219,7 +219,7 @@ class DocumentTypeValidator:
         "curriculum_vitae": "prebuilt-resume",
         "titulo_universitario": "custom",
         "concentracion_notas": "custom",
-        "cedula_identidad": "prebuilt-identityDocument",
+        "cedula_identidad": "prebuilt-idDocument",
         "cotizacion_afp": "custom"
     }
     

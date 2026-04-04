@@ -147,6 +147,32 @@ class TestDocumentProcessor:
         assert result.success is True
         assert result.status == ProcessingStatus.PARTIAL
         assert any("confianza" in w.lower() or "confidence" in w.lower() for w in (result.warnings or []))
+
+    @pytest.mark.asyncio
+    async def test_process_document_includes_azure_fallback_warning(self, sample_pdf_bytes):
+        """Test que incluye advertencia de fallback de Azure en la respuesta"""
+        processor = DocumentProcessor()
+        
+        mock_azure_result = AzureProcessingResult(
+            success=True,
+            extracted_data={"Name": "Juan Pérez"},
+            confidence_score=0.95,
+            model_used="prebuilt-document",
+            pages_processed=1,
+            processing_time_ms=1000,
+            warnings=["Modelo no encontrado: prebuilt-idDocument. Se usó prebuilt-document como fallback."]
+        )
+        
+        with patch.object(processor.azure_client, 'analyze_document', return_value=mock_azure_result):
+            result = await processor.process_document(
+                document_type=DocumentType.CEDULA_IDENTIDAD,
+                file_content=sample_pdf_bytes,
+                filename="frente.png"
+            )
+        
+        assert result.success is True
+        assert result.warnings is not None
+        assert any("fallback" in w.lower() or "modelo no encontrado" in w.lower() for w in result.warnings)
     
     def test_get_document_info(self):
         """Test obtención de información de tipo de documento"""
