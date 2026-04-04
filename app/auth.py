@@ -155,7 +155,7 @@ class JWTAuthProvider(LoggerMixin):
             raise AuthenticationError("JWT not configured")
         
         now = datetime.now(timezone.utc)
-        expiration = now + timedelta(minutes=self.expiration_minutes)
+        expiration = now + timedelta(minutes=settings.jwt_expiration_minutes)
         
         payload = {
             "client_name": client_name,
@@ -326,7 +326,7 @@ async def get_current_auth_context(
     """
     if not credentials:
         raise HTTPException(
-            status_code=401,
+            status_code=403,
             detail={
                 "success": False,
                 "error_code": ErrorCode.AUTHENTICATION_ERROR,

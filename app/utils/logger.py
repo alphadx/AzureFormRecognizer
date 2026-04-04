@@ -95,21 +95,29 @@ class LoggerMixin:
     
     def log_info(self, message: str, **kwargs):
         """Log de nivel INFO con datos extras"""
+        if "message" in kwargs:
+            kwargs["error_message"] = kwargs.pop("message")
         extra = {"extra_data": kwargs} if kwargs else {}
         self.logger.info(message, extra=extra)
     
     def log_warning(self, message: str, **kwargs):
         """Log de nivel WARNING con datos extras"""
+        if "message" in kwargs:
+            kwargs["error_message"] = kwargs.pop("message")
         extra = {"extra_data": kwargs} if kwargs else {}
         self.logger.warning(message, extra=extra)
     
     def log_error(self, message: str, **kwargs):
         """Log de nivel ERROR con datos extras"""
+        if "message" in kwargs:
+            kwargs["error_message"] = kwargs.pop("message")
         extra = {"extra_data": kwargs} if kwargs else {}
         self.logger.error(message, extra=extra)
     
     def log_debug(self, message: str, **kwargs):
         """Log de nivel DEBUG con datos extras"""
+        if "message" in kwargs:
+            kwargs["error_message"] = kwargs.pop("message")
         extra = {"extra_data": kwargs} if kwargs else {}
         self.logger.debug(message, extra=extra)
 

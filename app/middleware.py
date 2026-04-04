@@ -226,9 +226,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             
             logger.warning(
                 "Rate limit exceeded",
-                client_ip=client_ip,
-                endpoint=endpoint,
-                correlation_id=get_correlation_id()
+                extra={
+                    "extra_data": {
+                        "client_ip": client_ip,
+                        "endpoint": endpoint,
+                        "correlation_id": get_correlation_id()
+                    }
+                }
             )
             
             return JSONResponse(
@@ -293,8 +297,12 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
             logger.error(
                 f"Unhandled exception in middleware: {str(exc)}",
                 exc_info=True,
-                path=request.url.path,
-                correlation_id=get_correlation_id()
+                extra={
+                    "extra_data": {
+                        "path": request.url.path,
+                        "correlation_id": get_correlation_id()
+                    }
+                }
             )
             
             return JSONResponse(
@@ -385,9 +393,13 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
                 if size > self.max_size_bytes:
                     logger.warning(
                         "Request too large",
-                        size_bytes=size,
-                        max_size_bytes=self.max_size_bytes,
-                        correlation_id=get_correlation_id()
+                        extra={
+                            "extra_data": {
+                                "size_bytes": size,
+                                "max_size_bytes": self.max_size_bytes,
+                                "correlation_id": get_correlation_id()
+                            }
+                        }
                     )
                     
                     return JSONResponse(
@@ -418,12 +430,16 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # Log del request entrante
         logger.info(
             "Request started",
-            method=request.method,
-            path=request.url.path,
-            query_params=str(request.query_params),
-            client_ip=request.client.host if request.client else "unknown",
-            user_agent=request.headers.get("User-Agent", "unknown"),
-            correlation_id=get_correlation_id()
+            extra={
+                "extra_data": {
+                    "method": request.method,
+                    "path": request.url.path,
+                    "query_params": str(request.query_params),
+                    "client_ip": request.client.host if request.client else "unknown",
+                    "user_agent": request.headers.get("User-Agent", "unknown"),
+                    "correlation_id": get_correlation_id()
+                }
+            }
         )
         
         try:
@@ -433,11 +449,15 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             # Log del response exitoso
             logger.info(
                 "Request completed",
-                method=request.method,
-                path=request.url.path,
-                status_code=response.status_code,
-                duration_ms=round(duration_ms, 2),
-                correlation_id=get_correlation_id()
+                extra={
+                    "extra_data": {
+                        "method": request.method,
+                        "path": request.url.path,
+                        "status_code": response.status_code,
+                        "duration_ms": round(duration_ms, 2),
+                        "correlation_id": get_correlation_id()
+                    }
+                }
             )
             
             return response
@@ -448,12 +468,16 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             # Log del error
             logger.error(
                 "Request failed",
-                method=request.method,
-                path=request.url.path,
-                error=str(exc),
-                duration_ms=round(duration_ms, 2),
-                correlation_id=get_correlation_id(),
-                exc_info=True
+                exc_info=True,
+                extra={
+                    "extra_data": {
+                        "method": request.method,
+                        "path": request.url.path,
+                        "error": str(exc),
+                        "duration_ms": round(duration_ms, 2),
+                        "correlation_id": get_correlation_id()
+                    }
+                }
             )
             
             raise

@@ -199,16 +199,34 @@ class AzureFormRecognizerClient(LoggerMixin):
                 
             except HttpResponseError as e:
                 last_error = f"HTTP error {e.status_code}: {e.message}"
+
+                if e.status_code == 404 and model_id == "prebuilt-identityDocument":
+                    # Fallback a modelo genérico cuando el recurso no reconoce el modelo de identidad
+                    self.log_warning(
+                        "Azure model not found, falling back to prebuilt-document",
+                        extra={
+                            "extra_data": {
+                                "document_type": document_type.value,
+                                "model_id": model_id,
+                                "fallback_model_id": "prebuilt-document",
+                                "status_code": e.status_code,
+                                "error": e.message
+                            }
+                        }
+                    )
+                    model_id = "prebuilt-document"
+                    continue
+
                 self.log_error(
                     f"Azure HTTP error (attempt {attempt + 1})",
                     status_code=e.status_code,
-                    message=e.message,
+                    error=e.message,
                     document_type=document_type.value
                 )
                 # No reintentar errores 4xx
                 if e.status_code and 400 <= e.status_code < 500:
                     break
-                    
+
             except ServiceRequestError as e:
                 last_error = f"Service request error: {str(e)}"
                 self.log_error(
@@ -229,6 +247,21 @@ class AzureFormRecognizerClient(LoggerMixin):
                 
             except ResourceNotFoundError as e:
                 last_error = f"Resource not found: {str(e)}"
+                if model_id == "prebuilt-identityDocument":
+                    self.log_warning(
+                        "Azure model not found (ResourceNotFoundError), falling back to prebuilt-document",
+                        extra={
+                            "extra_data": {
+                                "document_type": document_type.value,
+                                "model_id": model_id,
+                                "fallback_model_id": "prebuilt-document",
+                                "error": str(e)
+                            }
+                        }
+                    )
+                    model_id = "prebuilt-document"
+                    continue
+
                 self.log_error(
                     "Azure resource not found",
                     error=str(e),

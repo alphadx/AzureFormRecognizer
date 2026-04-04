@@ -201,8 +201,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error(
         f"Unhandled exception: {str(exc)}",
         exc_info=True,
-        path=request.url.path,
-        correlation_id=get_correlation_id()
+        extra={
+            "extra_data": {
+                "path": request.url.path,
+                "correlation_id": get_correlation_id()
+            }
+        }
     )
     
     return JSONResponse(
@@ -312,7 +316,9 @@ async def health_check_detailed():
 
 
 @app.get("/api/v1/config", response_model=ConfigResponse, tags=["Configuración"])
-async def get_config():
+async def get_config(
+    auth_context: AuthContext = Depends(get_current_auth_context)
+):
     """
     Configuración de la API (sin datos sensibles)
     
@@ -619,10 +625,15 @@ async def process_document(
     Requiere autenticación Bearer.
     """
     logger.info(
-        f"Document processing request",
-        document_type=tipo_documento,
-        filename=archivo.filename,
-        client_name=auth_context.client_name
+        "Document processing request",
+        extra={
+            "extra_data": {
+                "document_type": tipo_documento,
+                "filename": archivo.filename,
+                "client_name": auth_context.client_name,
+                "correlation_id": get_correlation_id()
+            }
+        }
     )
     
     # Validar tipo de documento

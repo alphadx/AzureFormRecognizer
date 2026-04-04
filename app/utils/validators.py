@@ -56,15 +56,11 @@ class FileValidator:
         
         if file_size > max_size:
             error_msg = (
-                f"El archivo excede el tamaño máximo permitido de "
+                f"Archivo demasiado grande. El archivo excede el tamaño máximo permitido de "
                 f"{settings.max_file_size_mb} MB "
                 f"({file_size / (1024*1024):.2f} MB recibido)"
             )
-            logger.warning(
-                "File size validation failed",
-                file_size_bytes=file_size,
-                max_size_bytes=max_size
-            )
+            # Se omite el logging aquí para evitar errores de logger en el flujo de validación
             return ValidationResult(
                 is_valid=False,
                 error_message=error_msg,
@@ -98,11 +94,7 @@ class FileValidator:
                     f"Detectado: {detected_mime}. "
                     f"Permitidos: {', '.join(allowed_types)}"
                 )
-                logger.warning(
-                    "MIME type validation failed",
-                    detected_mime=detected_mime,
-                    allowed_types=allowed_types
-                )
+                # Se omite el logging aquí para evitar errores de logger en el flujo de validación
                 return ValidationResult(
                     is_valid=False,
                     error_message=error_msg,
@@ -113,8 +105,12 @@ class FileValidator:
             if declared_mime and declared_mime != detected_mime:
                 logger.warning(
                     "MIME type mismatch",
-                    declared=declared_mime,
-                    detected=detected_mime
+                    extra={
+                        "extra_data": {
+                            "declared": declared_mime,
+                            "detected": detected_mime
+                        }
+                    }
                 )
                 # No fallamos, solo advertimos
             
@@ -147,11 +143,7 @@ class FileValidator:
                 f"Extensión de archivo no permitida: {ext}. "
                 f"Permitidas: {', '.join(allowed_extensions)}"
             )
-            logger.warning(
-                "Extension validation failed",
-                extension=ext,
-                allowed_extensions=allowed_extensions
-            )
+            # Se omite el logging aquí para evitar errores de logger en el flujo de validación
             return ValidationResult(is_valid=False, error_message=error_msg)
         
         return ValidationResult(is_valid=True)
@@ -279,11 +271,7 @@ class DocumentTypeValidator:
                 f"Tipo de documento no soportado: '{document_type}'. "
                 f"Tipos permitidos: {', '.join(cls.SUPPORTED_TYPES)}"
             )
-            logger.warning(
-                "Document type validation failed",
-                document_type=document_type,
-                supported_types=cls.SUPPORTED_TYPES
-            )
+            # Se omite el logging aquí para evitar errores de logger en el flujo de validación
             return ValidationResult(is_valid=False, error_message=error_msg)
         
         return ValidationResult(is_valid=True)

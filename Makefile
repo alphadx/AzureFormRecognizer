@@ -85,6 +85,10 @@ docker-up-build: ## Construye e inicia los contenedores
 	@echo "$(BLUE)Construyendo e iniciando contenedores (DEMO=$(DEMO))...$(NC)"
 	$(DOCKER_COMPOSE) up --build -d
 
+docker-test: ## Ejecuta tests dentro de Docker usando el código del repo montado
+	@echo "$(BLUE)Ejecutando tests dentro de Docker...$(NC)"
+	docker compose -f docker/docker-compose.yml run --rm -v "$(PWD)":/workspace -w /workspace api pytest
+
 demo-up: ## Inicia contenedores con web demo (equivale a DEMO=1)
 	@echo "$(BLUE)Iniciando contenedores con DEMO...$(NC)"
 	$(MAKE) docker-up DEMO=1
